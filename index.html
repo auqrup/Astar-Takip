@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="tr" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#6b1d34">
+<title>Astar Takip</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+:root{
+  --brand:#6b1d34;--brand2:#8e2a47;--bg:#f6f2ee;--card:#fff;--ink:#231a1d;--mute:#7a6d70;--line:#e8dfdb;
+  --c-pending:#9aa0a6;--c-stock:#2f6fb3;--c-tailor:#d98a1c;--c-ready:#2e8b57;
+  --r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Arabic",Tahoma,sans-serif;font-size:16px}
+header{position:sticky;top:0;z-index:5;background:var(--brand);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:10px}
+header h1{font-size:19px;margin:0;flex:1}
+.sync{font-size:12.5px;font-weight:700;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.16);white-space:nowrap}
+.sync.ok{background:#2e8b57}.sync.pending{background:#d98a1c}.sync.offline{background:#7a6d70}.sync.err{background:#b33}
+.login{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
+.login .box{width:100%;max-width:380px}
+.login h2{color:var(--brand);font-size:28px;text-transform:none;letter-spacing:0;margin:0 0 4px}
+.login input{margin-top:12px}
+header small{display:block;font-weight:400;opacity:.75;font-size:12px}
+main{max-width:640px;margin:0 auto;padding:14px 14px calc(96px + env(safe-area-inset-bottom))}
+section.page{display:none}section.page.on{display:block}
+h2{font-size:15px;color:var(--mute);margin:18px 4px 8px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.card{background:var(--card);border-radius:var(--r);padding:14px;box-shadow:0 1px 2px rgba(0,0,0,.05);margin-bottom:10px}
+.stages{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stage{background:var(--card);border-radius:var(--r);padding:14px;border-inline-start:6px solid var(--c);box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.stage .n{font-size:30px;font-weight:800;line-height:1.1}
+.stage .l{font-size:13px;color:var(--mute);margin-top:2px}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:#eee;margin:8px 0 6px}
+.bar span{display:block;height:100%}
+.ord-h{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.ord-h b{font-size:16px}.ord-h small{color:var(--mute)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--mute)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-inline-end:4px;vertical-align:middle}
+label.f{display:block;font-size:13px;color:var(--mute);margin:14px 2px 6px;font-weight:600}
+input,select,textarea{width:100%;font:inherit;font-size:17px;padding:13px 12px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand2)}
+textarea{min-height:60px;resize:vertical}
+.types{display:grid;gap:8px}
+.tbtn{display:flex;align-items:center;gap:12px;padding:15px;border:2px solid var(--line);border-radius:14px;background:#fff;font:inherit;font-size:17px;font-weight:700;color:var(--ink);text-align:start}
+.tbtn .dot{width:14px;height:14px;border-radius:50%;background:var(--c);flex:none}
+.tbtn.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,#fff);animation:breathe 1.8s ease-in-out infinite}
+.tbtn .dot{position:relative}
+.tbtn.on .dot::after{content:'';position:absolute;inset:0;border-radius:50%;background:var(--c);animation:ripple 1.4s ease-out infinite}
+.tbtn.on::after{content:'✓';margin-inline-start:auto;color:var(--c);font-size:24px;font-weight:800}
+@keyframes breathe{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 40%,transparent)}50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--c) 15%,transparent)}}
+@keyframes ripple{from{transform:scale(1);opacity:.7}to{transform:scale(3.2);opacity:0}}
+/* müşteri seçimi: akan altın kenarlık */
+.ordwrap{position:relative;border-radius:15px;padding:3px;background:var(--line);transition:box-shadow .3s}
+.ordwrap select{border:none;border-radius:12px;font-size:18px}
+.ordwrap.picked{background:repeating-linear-gradient(90deg,#6b1d34 0,#d98a1c 60px,#f2c14e 120px,#d98a1c 180px,#6b1d34 240px);animation:flow 2.4s linear infinite;box-shadow:0 6px 18px rgba(107,29,52,.22)}
+.ordwrap.picked select{font-weight:800;background:#fffaf3;color:var(--brand)}
+.ordwrap.picked::after{content:'✓';position:absolute;top:-10px;inset-inline-end:-8px;width:28px;height:28px;border-radius:50%;background:#2e8b57;color:#fff;display:grid;place-items:center;font-size:16px;font-weight:800;box-shadow:0 2px 6px rgba(0,0,0,.25);animation:pop .4s cubic-bezier(.3,1.6,.5,1)}
+@keyframes flow{from{background-position:0 0}to{background-position:240px 0}}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.stepper{display:flex;gap:8px}
+.stepper button{flex:none;width:58px;font-size:26px;font-weight:700;border:none;border-radius:12px;background:#efe7e3;color:var(--brand)}
+.stepper input{text-align:center;font-size:24px;font-weight:800}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font:inherit;font-size:15px;font-weight:600;color:var(--ink)}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.hint{font-size:14px;color:var(--mute);margin:6px 2px 0}
+.hint b{color:var(--ink)}
+.btn{display:block;width:100%;padding:16px;border:none;border-radius:14px;background:var(--brand);color:#fff;font:inherit;font-size:18px;font-weight:700;margin-top:18px}
+.btn.sec{background:#efe7e3;color:var(--brand)}
+.btn.sm{padding:11px;font-size:15px;margin-top:8px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mv{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.mv:last-child{border-bottom:none}
+.mv .dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.mv .tx{flex:1;min-width:0}
+.mv .tx div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mv .tx small{color:var(--mute)}
+.mv .q{font-weight:800;font-size:18px}
+.mv .edit{border:none;background:#efe7e3;color:var(--brand);font-size:18px;width:40px;height:40px;border-radius:10px;flex:none}
+.mv small.dl{display:block;line-height:1.45}
+.mv small.dl b{color:var(--ink);font-weight:600}
+.edtag{display:inline-block;font-size:11.5px;font-weight:700;color:#b5541c;background:#fdeee2;border-radius:999px;padding:1px 8px;margin-top:3px}
+.edlog{font-size:12.5px;color:#b5541c;margin-top:4px;white-space:normal;line-height:1.4}
+.mv .tx div.edlog{white-space:normal;overflow:visible}
+details.arch{margin-top:18px}
+details.arch summary{font-size:15px;color:var(--mute);font-weight:700;padding:12px 4px;cursor:pointer;text-transform:uppercase;letter-spacing:.03em}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center}
+.sheet.open{display:flex}
+.sheet .box{background:var(--bg);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+.sheet h3{margin:0 0 4px;color:var(--brand)}
+.dayh{font-size:13px;font-weight:700;color:var(--brand);margin:14px 4px 4px}
+.empty{text-align:center;color:var(--mute);padding:26px 10px}
+.tabbar{position:fixed;bottom:0;left:0;right:0;z-index:6;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+.tabbar button{flex:1;border:none;background:none;padding:9px 2px 8px;font:inherit;font-size:11.5px;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:3px}
+.tabbar button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tabbar button.on{color:var(--brand);font-weight:700}
+.tabbar button.add svg{background:var(--brand);color:#fff;stroke:#fff;border-radius:12px;width:40px;height:30px;padding:4px 10px}
+#toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:#222;color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:9;max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#repPreview{width:100%;border-radius:10px;border:1px solid var(--line);display:none;margin-top:12px;background:#fff}
+.small{font-size:13px;color:var(--mute)}
+.done-tag{font-size:12px;background:#e3f3ea;color:var(--c-ready);padding:2px 8px;border-radius:999px;font-weight:700}
+</style>
+</head>
+<body>
+<header>
+  <h1><span data-i18n="app"></span><small data-i18n="sub"></small></h1>
+  <span class="sync" id="syncChip" style="display:none"></span>
+</header>
+
+<main>
+  <!-- ÖZET -->
+  <section class="page on" id="p-dash">
+    <div class="stages" id="stageCards"></div>
+    <h2 data-i18n="orders_status"></h2>
+    <div id="dashOrders"></div>
+    <h2 data-i18n="recent"></h2>
+    <div class="card" id="dashRecent"></div>
+  </section>
+
+  <!-- GİRİŞ -->
+  <section class="page" id="p-add">
+    <div id="addNoOrder" class="card empty" style="display:none">
+      <p data-i18n="no_orders"></p>
+      <button class="btn" onclick="go('orders')" data-i18n="go_orders"></button>
+    </div>
+    <div id="addForm">
+      <label class="f" style="margin-top:4px" data-i18n="f_order"></label>
+      <div class="ordwrap" id="ordWrap"><select id="fOrder"></select></div>
+      <label class="f" data-i18n="f_type"></label>
+      <div class="types" id="typeBtns"></div>
+      <p class="hint" id="fAvail"></p>
+      <label class="f" data-i18n="f_qty"></label>
+      <div class="stepper">
+        <button type="button" onclick="step(-1)">−</button>
+        <input id="fQty" type="number" inputmode="numeric" min="1" placeholder="0">
+        <button type="button" onclick="step(1)">+</button>
+      </div>
+      <label class="f" data-i18n="f_date"></label>
+      <input id="fDate" type="date">
+      <label class="f" data-i18n="f_note"></label>
+      <textarea id="fNote"></textarea>
+      <button class="btn" id="saveBtn" data-i18n="save"></button>
+    </div>
+  </section>
+
+  <!-- SİPARİŞLER -->
+  <section class="page" id="p-orders">
+    <div class="card">
+      <b data-i18n="o_new"></b>
+      <label class="f" data-i18n="o_customer"></label>
+      <input id="oCustomer" autocomplete="off" list="custList"><datalist id="custList"></datalist>
+      <label class="f" data-i18n="o_product"></label>
+      <input id="oProduct" autocomplete="off">
+      <div class="row2">
+        <div><label class="f" data-i18n="o_total"></label><input id="oTotal" type="number" inputmode="numeric" min="1"></div>
+        <div><label class="f" data-i18n="o_date"></label><input id="oDate" type="date"></div>
+      </div>
+      <button class="btn" id="oAddBtn" data-i18n="o_add"></button>
+    </div>
+    <h2 data-i18n="o_list"></h2>
+    <div id="orderList"></div>
+    <details class="arch">
+      <summary><span data-i18n="arch"></span> (<span id="archCount">0</span>)</summary>
+      <div id="archList"></div>
+    </details>
+    <h2 data-i18n="backup"></h2>
+    <div class="card">
+      <button class="btn sec sm" id="expBtn" data-i18n="export"></button>
+      <button class="btn sec sm" onclick="document.getElementById('impFile').click()" data-i18n="import"></button>
+      <input type="file" id="impFile" accept="application/json" style="display:none">
+    </div>
+    <div class="card" id="acctCard" style="display:none">
+      <p class="small" style="margin:0">☁ Bulut hesabı: <b id="acctEmail"></b></p>
+      <button class="btn sec sm" id="logoutBtn">Çıkış yap</button>
+    </div>
+  </section>
+
+  <!-- GEÇMİŞ -->
+  <section class="page" id="p-hist">
+    <div class="row2">
+      <select id="hType"></select>
+      <select id="hOrder"></select>
+    </div>
+    <div id="histList"></div>
+  </section>
+
+  <!-- RAPOR -->
+  <section class="page" id="p-rep">
+    <div class="card">
+      <label class="f" style="margin-top:0" data-i18n="r_customer"></label>
+      <select id="rCust"></select>
+      <p class="hint" id="lastRepInfo"></p>
+      <div id="repActions" style="display:none">
+        <button class="btn" id="shareImg" data-i18n="r_share_img"></button>
+      </div>
+      <img id="repPreview" alt="">
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar" id="tabbar">
+  <button data-p="dash" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg><span data-i18n="tab_dash"></span></button>
+  <button data-p="orders"><svg viewBox="0 0 24 24"><path d="M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01"/></svg><span data-i18n="tab_orders"></span></button>
+  <button data-p="add" class="add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span data-i18n="tab_add"></span></button>
+  <button data-p="hist"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span data-i18n="tab_hist"></span></button>
+  <button data-p="rep"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg><span data-i18n="tab_rep"></span></button>
+</nav>
+<div class="sheet" id="editSheet" onclick="if(event.target===this)closeEdit()">
+  <div class="box">
+    <h3 data-i18n="edit_title"></h3>
+    <label class="f" data-i18n="f_order"></label><select id="eOrder"></select>
+    <label class="f" data-i18n="f_type"></label><div class="types" id="eTypes"></div>
+    <label class="f" data-i18n="f_qty"></label><input id="eQty" type="number" inputmode="numeric" min="1" style="text-align:center;font-size:22px;font-weight:800">
+    <label class="f" data-i18n="f_date"></label><input id="eDate" type="date">
+    <label class="f" data-i18n="f_note"></label><textarea id="eNote"></textarea>
+    <button class="btn" onclick="saveEdit()" data-i18n="edit_save"></button>
+    <button class="btn sec" onclick="closeEdit()" data-i18n="cancel"></button>
+  </div>
+</div>
+<div class="login" id="loginBox" style="display:none">
+  <div class="box">
+    <h2>Astar Takip</h2>
+    <p class="small">Devam etmek için giriş yapın.</p>
+    <input id="lgEmail" type="email" placeholder="E-posta" autocomplete="username">
+    <input id="lgPass" type="password" placeholder="Şifre" autocomplete="current-password">
+    <button class="btn" id="lgBtn">Giriş yap</button>
+    <p class="hint" id="lgErr" style="color:#b33"></p>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ================= DİL / اللغة ================= */
+const I18N = {
+tr:{
+ app:'Astar Takip', sub:'Kadife → Astarcı takip sistemi',
+ tab_dash:'Özet', tab_add:'Giriş', tab_orders:'Siparişler', tab_hist:'Geçmiş', tab_rep:'Rapor',
+ st_pending:'Dokunmadı', st_stock:'Depomuzda', st_tailor:'Astarcıda', st_ready:'Hazır (astarlı)',
+ ty_prod:'Dokundu (depoya girdi)', ty_sent:'Astarcıya gönderildi', ty_recv:'Astarcıdan geldi (astarlı)',
+ tys_prod:'Dokuma', tys_sent:'Astarcıya gönderim', tys_recv:'Astarcıdan gelen',
+ pkg:'paket', recent:'Son hareketler', orders_status:'Sipariş durumu', none:'Henüz kayıt yok',
+ no_orders:'Önce bir sipariş ekleyin.', go_orders:'Sipariş ekle',
+ f_type:'İşlem türü', f_order:'Müşteri – Sipariş', f_qty:'Paket adedi', f_date:'Tarih', f_note:'Not (isteğe bağlı)', save:'Kaydet',
+ av_prod:'Dokunacak kalan', av_sent:'Depoda gönderilebilir', av_recv:'Astarcıda bekleyen',
+ err_qty:'Adet 0’dan büyük olmalı', err_order:'Sipariş seçin', err_date:'Tarih seçin',
+ err_sent:'Depoda bu kadar paket yok! Mevcut: {n}', err_recv:'Astarcıda bu kadar paket yok! Bekleyen: {n}',
+ warn_over:'Bu adet siparişin kalanını ({n}) aşıyor. Yine de kaydedilsin mi?',
+ saved:'Kaydedildi ✓',
+ o_new:'Yeni sipariş', o_customer:'Müşteri', o_product:'Ürün / renk / kod', o_total:'Toplam paket', o_date:'Sipariş tarihi', o_add:'Siparişi ekle',
+ o_list:'Siparişler', o_arch:'Arşivle', o_arch_confirm:'Bu sipariş arşive taşınsın mı? Tüm kayıtları sayfalardan gizlenecek (silinmez).', o_archived:'Arşive taşındı', o_restored:'Arşivden geri alındı ✓', o_unarch:'Arşivden geri al', o_arch_on:'Arşive alındı', arch:'Arşiv', arch_empty:'Arşivde sipariş yok', ev_date:'İşlem tarihi', rec_date:'Kayıt zamanı', o_done:'Tamamlandı', o_err:'Müşteri ve toplam paket gerekli', o_added:'Sipariş eklendi ✓',
+ h_all_t:'Tüm işlemler', h_all_o:'Tüm siparişler', edited:'düzenlendi', edit_title:'Kaydı düzenle', edit_save:'Değişikliği kaydet', cancel:'Vazgeç', edit_saved:'Düzenlendi ✓', no_change:'Değişiklik yok', c_note:'Not', edit_block:'Bu değişiklik yapılamaz: rakamlar eksiye düşer (ör. depodakinden fazla paket gönderilmiş olur). Adetleri kontrol edin.', deleted:'Silindi',
+ r_gen:'Raporu oluştur', r_share_img:'Raporu paylaş', r_share_pdf:'PDF olarak paylaş',
+ r_title:'Astar Takip Raporu', r_scope:'Sipariş başlangıcından bugüne', r_generated:'Oluşturulma', r_in_period:'Tüm hareketler (yeniden eskiye)', r_current:'Güncel durum (tüm siparişler)', r_moves:'Hareket listesi', r_orders:'Sipariş bazında durum', r_no_moves:'Henüz hareket yok', r_more:'+ {n} hareket daha',
+ r_last:'Son rapor: {d}', never:'henüz yok', r_since_lbl:'Son rapordan beri ({d} sonrası)',
+ backup:'Yedekleme', export:'Yedeği indir (JSON)', import:'Yedeği yükle', imported:'Yedek yüklendi ✓', imp_confirm:'Mevcut veriler yedekteki verilerle değiştirilsin mi?',
+ c_order:'Sipariş', c_date:'Tarih', c_type:'İşlem', c_qty:'Paket', c_total:'Toplam',
+ st_woven:'Dokundu', st_stock_l:'Depoda (astarcıya gidecek)', r_customer:'Müşteri', r_pick:'Önce müşteri seçin', r_order_total:'Sipariş toplamı', c_product:'Ürün', r_cur_c:'Güncel durum', st_stock_s:'Depoda'
+}
+};
+const LS = {get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const lang = 'tr';
+const t = (k, vars, L=lang) => { let s = (I18N[L]&&I18N[L][k]) ?? I18N.tr[k] ?? k; if(vars) for(const v in vars) s=s.replace('{'+v+'}',vars[v]); return s; };
+
+/* ================= VERİ KATMANI =================
+   Şimdilik telefonda (localStorage) saklanıyor.
+   Firebase bağlanınca sadece Store.load / Store.save değişecek. */
+const KEY='astar-takip-v1';
+let memory=null;
+const Store={
+  load(){ try{ const s=localStorage.getItem(KEY); if(s) return JSON.parse(s);}catch(e){} return memory; },
+  save(s){ memory=s; try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch(e){} }
+};
+let S = Store.load() || {orders:[], moves:[], lastReportTs:0};
+const persist = () => { Store.save(S); if(window.Cloud) window.Cloud.push(S); };
+function stable(v){ if(Array.isArray(v)) return '['+v.map(stable).join(',')+']'; if(v&&typeof v==='object') return '{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+stable(v[k])).join(',')+'}'; return JSON.stringify(v); }
+// Buluttan gelen veriyi uygula
+function applyRemote(d){ const n={orders:d.orders||[], moves:d.moves||[], lastRep:d.lastRep||{}}; if(stable(n)===stable({orders:S.orders,moves:S.moves,lastRep:S.lastRep||{}})) return; S=n; Store.save(S); renderAll(); }
+function resetLocal(){ S={orders:[],moves:[],lastRep:{}}; Store.save(S); renderAll(); }
+try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
+
+/* ================= YARDIMCI ================= */
+const $ = id => document.getElementById(id);
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const today = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+const addDays = (iso,n) => { const d=new Date(iso+'T12:00:00'); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+const fmtD = iso => iso ? iso.split('-').reverse().join('.') : '';
+const fmtTs = ts => { const d=new Date(ts); return fmtD(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'))+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COL = {pending:'#9aa0a6', stock:'#2f6fb3', tailor:'#d98a1c', ready:'#2e8b57', prod:'#2f6fb3', sent:'#d98a1c', recv:'#2e8b57'};
+const TYPES = ['prod','sent','recv'];
+const STAGES = ['pending','stock','tailor','ready'];
+function toast(msg){ const el=$('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2200); }
+const orderById = id => S.orders.find(o=>o.id===id);
+const act = () => S.orders.filter(o=>!o.archived);
+const liveMove = m => { const o=orderById(m.orderId); return o && !o.archived; };
+const orderLabel = o => o ? (o.customer + (o.product? ' – '+o.product : '')) : '?';
+
+function calc(orderId){
+  const o = orderById(orderId); const r={prod:0,sent:0,recv:0};
+  S.moves.forEach(m=>{ if(m.orderId===orderId) r[m.type]+=m.qty; });
+  return { total:o?o.total:0, pending:Math.max((o?o.total:0)-r.prod,0), stock:r.prod-r.sent, tailor:r.sent-r.recv, ready:r.recv, ...r };
+}
+function totals(){
+  const T={pending:0,stock:0,tailor:0,ready:0,total:0};
+  act().forEach(o=>{ const c=calc(o.id); STAGES.forEach(k=>T[k]+=c[k]); T.total+=o.total; });
+  return T;
+}
+const sortMoves = arr => arr.slice().sort((a,b)=> b.date.localeCompare(a.date) || b.ts-a.ts);
+
+/* ================= NAVİGASYON ================= */
+function go(p){
+  document.querySelectorAll('section.page').forEach(s=>s.classList.toggle('on', s.id==='p-'+p));
+  document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
+  window.scrollTo(0,0); renderAll();
+}
+document.querySelectorAll('#tabbar button').forEach(b=>b.onclick=()=>go(b.dataset.p));
+
+/* ================= ÖZET ================= */
+function renderDash(){
+  const T=totals();
+  $('stageCards').innerHTML = STAGES.map(k=>`<div class="stage" style="--c:${COL[k]}"><div class="n">${T[k]}</div><div class="l">${t('st_'+k)} · ${t('pkg')}</div></div>`).join('');
+  const open = act().reverse();
+  $('dashOrders').innerHTML = open.length ? open.map(o=>orderCard(o,'')).join('') : `<div class="card empty">${t('none')}</div>`;
+  const rec = sortMoves(S.moves.filter(liveMove)).slice(0,6);
+  $('dashRecent').innerHTML = rec.length ? rec.map(m=>moveRow(m,false)).join('') : `<div class="empty">${t('none')}</div>`;
+}
+function orderCard(o, mode){
+  const c=calc(o.id), tot=Math.max(o.total, c.prod)||1;
+  const seg = STAGES.map(k=>`<span style="width:${c[k]/tot*100}%;background:${COL[k]}"></span>`).join('');
+  const done = c.ready>=o.total && o.total>0;
+  return `<div class="card">
+    <div class="ord-h"><b>${esc(orderLabel(o))}</b><small>${fmtD(o.date)}</small></div>
+    <div class="bar">${seg}</div>
+    <div class="legend">${STAGES.map(k=>`<span><i style="background:${COL[k]}"></i>${t('st_'+k)}: <b>${c[k]}</b></span>`).join('')}
+      <span>${t('c_total')}: <b>${o.total}</b></span>${done?` <span class="done-tag">${t('o_done')}</span>`:''}</div>
+    ${mode==='active'?`<button class="btn sec sm" onclick="archOrder('${o.id}',true)">🗄 ${t('o_arch')}</button>`:''}
+    ${mode==='archived'?`<p class="small" style="margin:8px 2px 0">${t('o_arch_on')}: ${fmtTs(o.archived)}</p><button class="btn sm" onclick="archOrder('${o.id}',false)">↩ ${t('o_unarch')}</button>`:''}
+  </div>`;
+}
+function moveRow(m, withEdit){
+  const o=orderById(m.orderId), ed=m.edits&&m.edits.length;
+  const log = withEdit&&ed ? `<div class="edlog">${m.edits.map(e=>`✎ ${fmtTs(e.ts)}: ${esc(diffText(e.before,e.after))}`).join('<br>')}</div>` : '';
+  return `<div class="mv" style="--c:${COL[m.type]}"><span class="dot"></span>
+   <div class="tx"><div><b>${t('tys_'+m.type)}</b> · ${esc(orderLabel(o))}</div>${withEdit ? `<small class="dl">📅 ${t('ev_date')}: <b>${fmtD(m.date)}</b></small>${m.ts?`<small class="dl">🕒 ${t('rec_date')}: ${fmtTs(m.ts)}</small>`:''}${m.note?`<small class="dl">📝 ${esc(m.note)}</small>`:''}` : `<small>${fmtD(m.date)}${m.note?' · '+esc(m.note):''}</small>`}${ed?` <span class="edtag">✎ ${t('edited')}</span>`:''}${log}</div>
+   <span class="q">${m.type==='prod'?'+':m.type==='sent'?'→':'✓'}${m.qty}</span>
+   ${withEdit?`<button class="edit" onclick="openEdit('${m.id}')" aria-label="düzenle">✎</button>`:''}</div>`;
+}
+function diffText(a,b){
+  const p=[];
+  if(a.orderId!==b.orderId) p.push(t('c_order')+': '+orderLabel(orderById(a.orderId))+' → '+orderLabel(orderById(b.orderId)));
+  if(a.type!==b.type) p.push(t('c_type')+': '+t('tys_'+a.type)+' → '+t('tys_'+b.type));
+  if(a.qty!==b.qty) p.push(t('c_qty')+': '+a.qty+' → '+b.qty);
+  if(a.date!==b.date) p.push(t('c_date')+': '+fmtD(a.date)+' → '+fmtD(b.date));
+  if((a.note||'')!==(b.note||'')) p.push(t('c_note')+': "'+(a.note||'')+'" → "'+(b.note||'')+'"');
+  return p.join(' · ');
+}
+
+/* ================= GİRİŞ ================= */
+let curType = 'prod';
+function renderAdd(){
+  const has = act().length>0;
+  $('addNoOrder').style.display = has?'none':'block';
+  $('addForm').style.display = has?'block':'none';
+  $('typeBtns').innerHTML = TYPES.map(k=>`<button type="button" class="tbtn ${k===curType?'on':''}" style="--c:${COL[k]}" onclick="setType('${k}')"><span class="dot"></span>${t('ty_'+k)}</button>`).join('');
+  const sel=$('fOrder'), prev=sel.value;
+  const key = curType==='prod'?'pending':curType==='sent'?'stock':'tailor';
+  const list = act().reverse();
+  sel.innerHTML = `<option value="">—</option>` + list.map(o=>`<option value="${o.id}">${esc(orderLabel(o))} (${calc(o.id)[key]})</option>`).join('');
+  if(list.find(o=>o.id===prev)) sel.value=prev; else if(list.length===1) sel.value=list[0].id;
+  if(!$('fDate').value) $('fDate').value=today();
+  updAvail(); markPicked();
+}
+function setType(k){ curType=k; renderAdd(); }
+function avail(){ const id=$('fOrder').value; if(!id) return null; const c=calc(id); return curType==='prod'?c.pending:curType==='sent'?c.stock:c.tailor; }
+function updAvail(){ const a=avail(); $('fAvail').innerHTML = a===null?'':`${t('av_'+curType)}: <b>${a}</b> ${t('pkg')}`; }
+function step(n){ const i=$('fQty'); i.value=Math.max(0,(parseInt(i.value)||0)+n)||''; }
+$('fOrder').onchange=()=>{ updAvail(); markPicked(); };
+function markPicked(){ $('ordWrap').classList.toggle('picked', !!$('fOrder').value); }
+$('saveBtn').onclick=()=>{
+  const orderId=$('fOrder').value, qty=parseInt($('fQty').value), date=$('fDate').value, note=$('fNote').value.trim();
+  if(!orderId) return toast(t('err_order'));
+  if(!qty||qty<1) return toast(t('err_qty'));
+  if(!date) return toast(t('err_date'));
+  const c=calc(orderId);
+  if(curType==='sent' && qty>c.stock) return toast(t('err_sent',{n:c.stock}));
+  if(curType==='recv' && qty>c.tailor) return toast(t('err_recv',{n:c.tailor}));
+  if(curType==='prod' && qty>c.pending && !confirm(t('warn_over',{n:c.pending}))) return;
+  S.moves.push({id:uid(), orderId, type:curType, qty, date, note, ts:Date.now()});
+  persist();
+  $('fQty').value=''; $('fNote').value='';
+  toast(t('saved')); renderAdd();
+};
+
+/* ================= SİPARİŞLER ================= */
+function renderOrders(){
+  $('custList').innerHTML = customers().map(c=>`<option value="${esc(c)}">`).join('');
+  if(!$('oDate').value) $('oDate').value=today();
+  const list=act().reverse();
+  $('orderList').innerHTML = list.length? list.map(o=>orderCard(o,'active')).join('') : `<div class="card empty">${t('none')}</div>`;
+  const ar=S.orders.filter(o=>o.archived).sort((a,b)=>b.archived-a.archived);
+  $('archCount').textContent=ar.length;
+  $('archList').innerHTML = ar.length? ar.map(o=>orderCard(o,'archived')).join('') : `<div class="card empty">${t('arch_empty')}</div>`;
+}
+$('oAddBtn').onclick=()=>{
+  const customer=$('oCustomer').value.trim(), product=$('oProduct').value.trim(), total=parseInt($('oTotal').value), date=$('oDate').value||today();
+  if(!customer||!total||total<1) return toast(t('o_err'));
+  S.orders.push({id:uid(), customer, product, total, date, ts:Date.now()}); persist();
+  $('oCustomer').value=$('oProduct').value=$('oTotal').value=''; toast(t('o_added')); renderOrders();
+};
+function archOrder(id,on){ const o=orderById(id); if(!o) return; if(on&&!confirm(t('o_arch_confirm'))) return; if(on) o.archived=Date.now(); else delete o.archived; persist(); toast(on?t('o_archived'):t('o_restored')); renderAll(); }
+$('expBtn').onclick=()=>{ const b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}); download(b,'astar-yedek-'+today()+'.json'); };
+$('impFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.orders||!d.moves) throw 0; if(!confirm(t('imp_confirm'))) return; S=d; persist(); toast(t('imported')); renderAll(); }catch(err){ toast('JSON ✕'); } }; r.readAsText(f); e.target.value=''; };
+
+/* ================= GEÇMİŞ ================= */
+function renderHist(){
+  const ht=$('hType'), ho=$('hOrder'), pt=ht.value, po=ho.value;
+  ht.innerHTML=`<option value="">${t('h_all_t')}</option>`+TYPES.map(k=>`<option value="${k}">${t('tys_'+k)}</option>`).join('');
+  ho.innerHTML=`<option value="">${t('h_all_o')}</option>`+act().map(o=>`<option value="${o.id}">${esc(orderLabel(o))}</option>`).join('');
+  ht.value=pt; ho.value=act().find(o=>o.id===po)?po:'';
+  const list=sortMoves(S.moves.filter(m=>liveMove(m)&&(!ht.value||m.type===ht.value)&&(!ho.value||m.orderId===ho.value)));
+  if(!list.length){ $('histList').innerHTML=`<div class="card empty">${t('none')}</div>`; return; }
+  let html='', day=null;
+  list.forEach(m=>{ if(m.date!==day){ if(day) html+='</div>'; day=m.date; html+=`<div class="dayh">${fmtD(day)}</div><div class="card">`; } html+=moveRow(m,true); });
+  $('histList').innerHTML=html+'</div>';
+}
+$('hType').onchange=$('hOrder').onchange=renderHist;
+/* ---- Düzenleme ---- */
+let editId=null, eType='prod';
+function openEdit(id){
+  const m=S.moves.find(x=>x.id===id); if(!m) return; editId=id; eType=m.type;
+  $('eOrder').innerHTML=act().map(o=>`<option value="${o.id}">${esc(orderLabel(o))}</option>`).join('');
+  $('eOrder').value=m.orderId; $('eQty').value=m.qty; $('eDate').value=m.date; $('eNote').value=m.note||'';
+  renderETypes(); $('editSheet').classList.add('open');
+}
+function renderETypes(){ $('eTypes').innerHTML=TYPES.map(k=>`<button type="button" class="tbtn ${k===eType?'on':''}" style="--c:${COL[k]}" onclick="eType='${k}';renderETypes()"><span class="dot"></span>${t('ty_'+k)}</button>`).join(''); }
+function closeEdit(){ $('editSheet').classList.remove('open'); editId=null; }
+function saveEdit(){
+  const m=S.moves.find(x=>x.id===editId); if(!m) return closeEdit();
+  const after={orderId:$('eOrder').value, type:eType, qty:parseInt($('eQty').value), date:$('eDate').value, note:$('eNote').value.trim()};
+  if(!after.qty||after.qty<1) return toast(t('err_qty'));
+  if(!after.date) return toast(t('err_date'));
+  const before={orderId:m.orderId,type:m.type,qty:m.qty,date:m.date,note:m.note||''};
+  if(!diffText(before,after)) return toast(t('no_change'));
+  // kontrol: değişiklikten sonra hiçbir siparişte eksi paket olmamalı
+  const keep={...m}; Object.assign(m,after);
+  const bad=[before.orderId,after.orderId].some(id=>{ const c=calc(id); return c.stock<0||c.tailor<0; });
+  if(bad){ Object.assign(m,keep); return alert(t('edit_block')); }
+  m.edits=(m.edits||[]).concat([{ts:Date.now(), before, after}]);
+  persist(); closeEdit(); toast(t('edit_saved')); renderAll();
+}
+
+/* ================= RAPOR ================= */
+const rLang = 'tr'; let rCust = '', lastCanvas=null, lastCust='';
+const RANGES=['since','today','7','month','all','custom'];
+function customers(){ return [...new Set(act().map(o=>o.customer))].sort((a,b)=>a.localeCompare(b,'tr')); }
+const lastRep = c => (S.lastRep && S.lastRep[c]) || 0;
+function renderRep(){
+  const cs=customers(); if(!cs.includes(rCust)) rCust = cs.length===1? cs[0] : '';
+  $('rCust').innerHTML = `<option value="">— ${t('r_pick')} —</option>` + cs.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  $('rCust').value = rCust;
+  $('lastRepInfo').textContent = rCust ? t('r_last',{d: lastRep(rCust)? fmtTs(lastRep(rCust)) : t('never')}) : '';
+  showReport();
+}
+$('rCust').onchange=e=>{ rCust=e.target.value; renderRep(); };
+
+function rangeInfo(L){ return {f:()=>true, label:t('r_scope',null,L)}; }
+
+function drawReport(L, cust){
+  const R=rangeInfo(L,cust), tr=(k,v)=>t(k,v,L), rtl=L==='ar';
+  const orders=act().filter(o=>o.customer===cust).reverse();
+  const ids=new Set(orders.map(o=>o.id));
+  const moves=sortMoves(S.moves.filter(m=>ids.has(m.orderId) && R.f(m)));
+  const sum={prod:0,sent:0,recv:0}; moves.forEach(m=>sum[m.type]+=m.qty);
+  const C={total:0,pending:0,prod:0,stock:0,tailor:0,ready:0};
+  const per=orders.map(o=>{ const c=calc(o.id); for(const k in C) C[k]+=c[k]; return [o,c]; });
+  const MAXROWS=150, shown=moves.slice(0,MAXROWS);
+  const W=1080, P=56, RH=54, tw=W-2*P;
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=1700+(shown.length+3)*RH+(orders.length+3)*RH;
+  const x=cv.getContext('2d');
+  const FONT='system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Arabic",Tahoma,sans-serif';
+  x.direction = rtl?'rtl':'ltr';
+  const X = (px,w=0) => rtl ? W-px-w : px;
+  const font=(s,wt=400)=>x.font=`${wt} ${s}px ${FONT}`;
+  const fit=(s,max)=>{ s=String(s); if(x.measureText(s).width<=max) return s; while(s.length&&x.measureText(s+'…').width>max) s=s.slice(0,-1); return s+'…'; };
+  const text=(s,px,py,{size=28,wt=400,col='#231a1d',align='start',max}={})=>{ font(size,wt); x.fillStyle=col; x.textBaseline='middle'; x.textAlign=align; if(max) s=fit(s,max); x.fillText(s,X(px),py); };
+  const wrap=(s,px,py,o)=>{ font(o.size,o.wt||400); const words=String(s).split(' '); let l1='',i=0;
+    while(i<words.length && x.measureText((l1?l1+' ':'')+words[i]).width<=o.max){ l1+=(l1?' ':'')+words[i]; i++; }
+    if(i===words.length||!l1){ text(s,px,py,o); return; }
+    const lh=o.size*1.2; text(l1,px,py-lh/2,o); text(words.slice(i).join(' '),px,py+lh/2,o); };
+  const rect=(px,py,w,h,col,r=16)=>{ x.fillStyle=col; x.beginPath(); x.roundRect? x.roundRect(X(px,w),py,w,h,r) : x.rect(X(px,w),py,w,h); x.fill(); };
+  const line=(x1,y1,x2,y2)=>{ x.strokeStyle='#c9bdb8'; x.lineWidth=3; x.beginPath(); x.moveTo(X(x1),y1); x.lineTo(X(x2),y2); x.stroke(); };
+  const branch=(pcx,y0,kids,y1)=>{ const ym=(y0+y1)/2; line(pcx,y0,pcx,ym); line(Math.min(...kids),ym,Math.max(...kids),ym); kids.forEach(k=>line(k,ym,k,y1)); };
+  const node=(bx,by,bw,bh,v,l,c)=>{ rect(bx,by,bw,bh,'#fff'); rect(bx,by,bw,8,c,4);
+    text(String(v),bx+bw/2,by+bh*0.42,{size:52,wt:800,col:c,align:'center'});
+    wrap(l,bx+bw/2,by+bh*0.78,{size:19,wt:600,col:'#7a6d70',align:'center',max:bw-10}); };
+
+  x.fillStyle='#f6f2ee'; x.fillRect(0,0,W,cv.height);
+  x.fillStyle='#6b1d34'; x.fillRect(0,0,W,250);
+  text(tr('r_title'),P,52,{size:28,wt:600,col:'#e6c4cd'});
+  text(cust,P,112,{size:50,wt:800,col:'#fff',max:tw});
+  text(R.label,P,170,{size:28,wt:600,col:'#f3d9e0'});
+  text(tr('r_generated')+': '+fmtTs(Date.now()),P,214,{size:21,col:'#e6c4cd'});
+  let y=280;
+
+  /* --- Güncel durum: ağaç --- */
+  text(tr('r_cur_c'),P,y+24,{size:30,wt:800}); y+=60;
+  rect(P,y,tw,130,'#fff');
+  text(tr('r_order_total'),P+28,y+46,{size:28,wt:700});
+  text(C.total+' '+tr('pkg'),W-P-28,y+46,{size:40,wt:800,col:'#6b1d34',align:'end'});
+  const bt=Math.max(C.total,C.prod)||1; let bx=P+28; const bw=tw-56;
+  [['pending',C.pending],['stock',C.stock],['tailor',C.tailor],['ready',C.ready]].forEach(([k,v])=>{ const w=v/bt*bw; if(w>0){ x.fillStyle=COL[k]; x.fillRect(X(bx,w),y+90,w,18);} bx+=w; });
+  const yA=y+130; y=yA+50;
+  const nW=300, wX=P+nW+24, wW=tw-nW-24, h2=150;
+  branch(W/2,yA,[P+nW/2, wX+wW/2],y);
+  node(P,y,nW,h2,C.pending,tr('st_pending'),COL.pending);
+  node(wX,y,wW,h2,C.prod,tr('st_woven'),'#6b1d34');
+  const yB=y+h2; y=yB+50;
+  const g=16, cW=(wW-2*g)/3, kids=[0,1,2].map(i=>wX+i*(cW+g)+cW/2);
+  branch(wX+wW/2,yB,kids,y);
+  [['stock','st_stock_l'],['tailor','st_tailor'],['ready','st_ready']].forEach(([k,lk],i)=>node(wX+i*(cW+g),y,cW,170,C[k],tr(lk),COL[k]));
+  y+=170+50;
+
+  /* --- Dönem hareketleri --- */
+  text(tr('r_in_period'),P,y+24,{size:30,wt:800}); y+=60;
+  const gap=16, b3=(tw-2*gap)/3;
+  TYPES.forEach((k,i)=>{ const bx2=P+i*(b3+gap); rect(bx2,y,b3,130,'#fff'); rect(bx2,y,10,130,COL[k],4);
+    text(String(sum[k]),bx2+b3/2,y+54,{size:50,wt:800,col:COL[k],align:'center'});
+    text(tr('tys_'+k),bx2+b3/2,y+104,{size:21,wt:600,col:'#7a6d70',align:'center',max:b3-24}); });
+  y+=150;
+  rect(P,y,tw,Math.max(shown.length,1)*RH+(moves.length>MAXROWS?RH:0)+12,'#fff'); y+=6;
+  if(!shown.length){ text(tr('r_no_moves'),W/2,y+RH/2,{size:24,col:'#7a6d70',align:'center'}); y+=RH; }
+  shown.forEach((m,i)=>{ const cy=y+RH/2;
+    if(i){ x.fillStyle='#eee5e1'; x.fillRect(X(P+20,tw-40),y,tw-40,2); }
+    text(fmtD(m.date),P+24,cy,{size:23,col:'#7a6d70'});
+    if(m.edits&&m.edits.length) text('✎ '+tr('edited'),W-P-150,cy,{size:17,wt:700,col:'#b5541c',align:'end'});
+    x.fillStyle=COL[m.type]; x.beginPath(); x.arc(X(P+190),cy,8,0,7); x.fill();
+    text(tr('tys_'+m.type),P+210,cy,{size:23,wt:700,col:COL[m.type],max:260});
+    const o=orderById(m.orderId); text(o&&o.product?o.product:'—',P+490,cy,{size:23,max:230});
+    text(m.qty+' '+tr('pkg'),W-P-24,cy,{size:25,wt:800,align:'end'});
+    y+=RH; });
+  if(moves.length>MAXROWS){ text(tr('r_more',{n:moves.length-MAXROWS}),W/2,y+RH/2,{size:22,col:'#7a6d70',align:'center'}); y+=RH; }
+  y+=46;
+
+  /* --- Birden fazla sipariş varsa ürün bazında --- */
+  if(orders.length>1){
+    text(tr('r_orders'),P,y+24,{size:30,wt:800}); y+=60;
+    const cols=[['total','c_total','#231a1d'],['pending','st_pending',COL.pending],['prod','st_woven','#6b1d34'],['stock','st_stock_s',COL.stock],['tailor','st_tailor',COL.tailor],['ready','st_ready',COL.ready]];
+    const cw=96, c0=W-P-cw*cols.length;
+    text(tr('c_product'),P+20,y+24,{size:19,wt:700,col:'#7a6d70'});
+    cols.forEach(([k,lk,c],i)=>wrap(tr(lk),c0+i*cw+cw/2,y+24,{size:16,wt:700,col:c,align:'center',max:cw-4}));
+    y+=56;
+    rect(P,y,tw,orders.length*RH+12,'#fff'); y+=6;
+    per.forEach(([o,c],i)=>{ const cy=y+RH/2;
+      if(i){ x.fillStyle='#eee5e1'; x.fillRect(X(P+20,tw-40),y,tw-40,2); }
+      text(o.product||fmtD(o.date),P+20,cy,{size:23,wt:600,max:c0-P-30});
+      cols.forEach(([k,,cc],j)=>text(String(c[k]),c0+j*cw+cw/2,cy,{size:24,wt:800,col:cc,align:'center'}));
+      y+=RH; });
+    y+=46;
+  }
+  text(tr('app')+' · '+tr('sub'),W/2,y+10,{size:20,col:'#a0959a',align:'center'});
+  const out=document.createElement('canvas'); out.width=W; out.height=y+50;
+  out.getContext('2d').drawImage(cv,0,0); return out;
+}
+
+function showReport(){
+  const img=$('repPreview');
+  if(!rCust){ img.style.display='none'; $('repActions').style.display='none'; lastCanvas=null; return; }
+  lastCust=rCust; lastCanvas=drawReport(rLang, rCust);
+  img.src=lastCanvas.toDataURL('image/png'); img.style.display='block';
+  $('repActions').style.display='block';
+}
+function download(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000); }
+async function shareFile(blob,name){
+  const file=new File([blob],name,{type:blob.type});
+  try{ if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:t('r_title',null,rLang)+' – '+lastCust}); markReported(); return; } }catch(e){ if(e.name==='AbortError') return; }
+  download(blob,name); markReported();
+}
+function markReported(){ S.lastRep=S.lastRep||{}; S.lastRep[lastCust]=Date.now(); persist(); renderRep(); }
+const repName = ext => 'rapor-'+lastCust.replace(/[^\p{L}\p{N}]+/gu,'-')+'-'+today()+'.'+ext;
+$('shareImg').onclick=()=>{ if(!lastCanvas) return; lastCanvas.toBlob(b=>shareFile(b,repName('png')),'image/png'); };
+
+/* ================= GENEL ================= */
+function applyLang(){
+  document.documentElement.lang=lang; document.documentElement.dir = lang==='ar'?'rtl':'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
+  document.title=t('app');
+}
+function renderAll(){ renderDash(); renderAdd(); renderOrders(); renderHist(); renderRep(); }
+applyLang(); renderAll();
+if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+<script type="module">
+/* ============ FIREBASE AYARLARI ============
+   Firebase konsolundaki "firebaseConfig" değerlerini buraya yapıştırın.
+   apiKey boş kalırsa sayfa sadece telefonda (yerel) çalışır. */
+const firebaseConfig = {
+  apiKey: "AIzaSyBC9lfCW6qPNOjcQDLQ25gTakR7STfWFCg",
+  authDomain: "astar-takibi.firebaseapp.com",
+  projectId: "astar-takibi",
+  storageBucket: "astar-takibi.firebasestorage.app",
+  messagingSenderId: "166821220605",
+  appId: "1:166821220605:web:2aee28534e8774c1856e94"
+};
+
+const $ = id => document.getElementById(id);
+function setSync(st){ const c=$('syncChip'); c.style.display='inline-block'; c.className='sync '+st;
+  c.textContent = {ok:'☁ Kaydedildi', pending:'⏳ Gönderiliyor', offline:'📴 Çevrimdışı', err:'⚠ Bulut hatası', wait:'… Bağlanıyor'}[st]; }
+
+if(firebaseConfig.apiKey){
+  setSync('wait');
+  try{
+    const B='https://www.gstatic.com/firebasejs/13.4.0/';
+    const { initializeApp } = await import(B+'firebase-app.js');
+    const A = await import(B+'firebase-auth.js');
+    const F = await import(B+'firebase-firestore.js');
+    const app = initializeApp(firebaseConfig);
+    const auth = A.getAuth(app);
+    const db = F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})});
+
+    let uid=null, ready=false, sent={}, unsubs=[];
+    const cache={orders:{},moves:{},meta:null}, first={orders:false,moves:false,meta:false}, pend={orders:false,moves:false,meta:false};
+    let fromCache=true;
+    const ref = k => F.doc(db,'users',uid,...k.split('/'));
+    const clean = o => JSON.parse(JSON.stringify(o));
+    const state = () => ({ orders:Object.values(cache.orders).sort((a,b)=>(a.ts||0)-(b.ts||0)), moves:Object.values(cache.moves), lastRep:(cache.meta&&cache.meta.lastRep)||{} });
+    function snapshotMap(st){ const m={}; st.orders.forEach(o=>m['orders/'+o.id]=o); st.moves.forEach(x=>m['moves/'+x.id]=x); m['meta/main']={lastRep:st.lastRep||{}}; return m; }
+
+    async function push(st){
+      if(!uid||!ready) return;
+      const now=snapshotMap(st), ops=[];
+      for(const k in now){ const j=stable(clean(now[k])); if(sent[k]!==j){ ops.push([k,clean(now[k])]); sent[k]=j; } }
+      for(const k in sent){ if(!(k in now)){ ops.push([k,null]); delete sent[k]; } }
+      for(let i=0;i<ops.length;i+=400){ const b=F.writeBatch(db);
+        ops.slice(i,i+400).forEach(([k,v])=> v? b.set(ref(k),v) : b.delete(ref(k)));
+        b.commit().catch(e=>{ console.error(e); setSync('err'); }); }
+      if(ops.length) setSync(navigator.onLine?'pending':'offline');
+    }
+    window.Cloud = { push };
+
+    function status(){ setSync(pend.orders||pend.moves||pend.meta ? (navigator.onLine?'pending':'offline') : (fromCache&&!navigator.onLine ? 'offline' : 'ok')); }
+    function onSnap(kind, meta){
+      first[kind]=true; pend[kind]=meta.hasPendingWrites; fromCache=meta.fromCache;
+      if(!(first.orders&&first.moves&&first.meta)) return;
+      const st=state();
+      if(!ready){
+        ready=true;
+        const empty=!st.orders.length && !st.moves.length;
+        if(empty && (S.orders.length||S.moves.length) &&
+           confirm(`Bu telefondaki ${S.orders.length} sipariş ve ${S.moves.length} işlem buluta yüklensin mi?\n\n(Hayır derseniz bu telefondaki veriler silinir ve bulut boş başlar.)`)){
+          sent={}; push(S); status(); return;
+        }
+      }
+      sent={}; const m=snapshotMap(st); for(const k in m) sent[k]=stable(clean(m[k]));
+      applyRemote(st); status();
+    }
+    function listen(){
+      unsubs.push(F.onSnapshot(F.collection(db,'users',uid,'orders'),{includeMetadataChanges:true},sn=>{ cache.orders={}; sn.forEach(d=>cache.orders[d.id]=d.data()); onSnap('orders',sn.metadata); },e=>{console.error(e);setSync('err');}));
+      unsubs.push(F.onSnapshot(F.collection(db,'users',uid,'moves'),{includeMetadataChanges:true},sn=>{ cache.moves={}; sn.forEach(d=>cache.moves[d.id]=d.data()); onSnap('moves',sn.metadata); },e=>{console.error(e);setSync('err');}));
+      unsubs.push(F.onSnapshot(ref('meta/main'),{includeMetadataChanges:true},d=>{ cache.meta=d.exists()?d.data():null; onSnap('meta',d.metadata); },e=>{console.error(e);setSync('err');}));
+    }
+    window.addEventListener('online',status); window.addEventListener('offline',status);
+
+    A.onAuthStateChanged(auth, user=>{
+      unsubs.forEach(u=>u()); unsubs=[]; ready=false; sent={};
+      Object.keys(first).forEach(k=>first[k]=false);
+      if(user){
+        uid=user.uid; $('loginBox').style.display='none';
+        $('acctCard').style.display='block'; $('acctEmail').textContent=user.email||'';
+        listen();
+      }else{
+        uid=null; $('loginBox').style.display='flex'; $('acctCard').style.display='none'; setSync('offline');
+      }
+    });
+    $('lgBtn').onclick=async()=>{
+      $('lgErr').textContent=''; $('lgBtn').disabled=true;
+      try{ await A.signInWithEmailAndPassword(auth,$('lgEmail').value.trim(),$('lgPass').value); }
+      catch(e){ $('lgErr').textContent = navigator.onLine ? 'E-posta veya şifre hatalı.' : 'İnternet bağlantısı yok.'; }
+      $('lgBtn').disabled=false;
+    };
+    $('logoutBtn').onclick=async()=>{ if(!confirm('Çıkış yapılsın mı? Veriler bulutta kalır, tekrar giriş yapınca geri gelir.')) return; await A.signOut(auth); resetLocal(); };
+  }catch(e){ console.error(e); setSync('err'); }
+}
+</script>
+</body>
+</html>
