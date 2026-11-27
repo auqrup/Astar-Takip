@@ -161,6 +161,8 @@ details.arch summary{font-size:15px;color:var(--mute);font-weight:700;padding:12
       <input id="oCustomer" autocomplete="off" list="custList"><datalist id="custList"></datalist>
       <label class="f" data-i18n="o_product"></label>
       <input id="oProduct" autocomplete="off">
+      <label class="f" data-i18n="o_tailor"></label>
+      <input id="oTailor" autocomplete="off" list="tailorList"><datalist id="tailorList"></datalist>
       <div class="row2">
         <div><label class="f" data-i18n="o_total"></label><input id="oTotal" type="number" inputmode="numeric" min="1"></div>
         <div><label class="f" data-i18n="o_date"></label><input id="oDate" type="date"></div>
@@ -266,7 +268,7 @@ tr:{
  warn_over:'Bu adet siparişin kalanını ({n}) aşıyor. Yine de kaydedilsin mi?',
  saved:'Kaydedildi ✓',
  o_new:'Yeni sipariş', o_customer:'Müşteri', o_product:'Ürün / renk / kod', o_total:'Toplam paket', o_date:'Sipariş tarihi', o_add:'Siparişi ekle',
- o_list:'Siparişler', o_del:'Kalıcı olarak sil', del_confirm2:'"{n}" siparişi ve TÜM hareketleri kalıcı olarak silinsin mi?', del_scheduled:'Bu sipariş 24 saat sonra kalıcı olarak silinecek. Bu süre içinde "Silmeyi geri al" ile vazgeçebilirsiniz.', del_pending:'Kalıcı silinme: {d} (kalan {r})', del_undo:'Silmeyi geri al', del_undone:'Silme iptal edildi ✓', o_arch:'Arşivle', o_arch_confirm:'Bu sipariş arşive taşınsın mı? Tüm kayıtları sayfalardan gizlenecek (silinmez).', o_archived:'Arşive taşındı', o_restored:'Arşivden geri alındı ✓', o_unarch:'Arşivden geri al', o_arch_on:'Arşive alındı', arch:'Arşiv', arch_empty:'Arşivde sipariş yok', ev_date:'İşlem tarihi', rec_date:'Kayıt zamanı', o_done:'Tamamlandı', o_err:'Müşteri ve toplam paket gerekli', o_added:'Sipariş eklendi ✓',
+ o_list:'Siparişler', o_del:'Kalıcı olarak sil', del_confirm2:'"{n}" siparişi ve TÜM hareketleri kalıcı olarak silinsin mi?', del_scheduled:'Bu sipariş 24 saat sonra kalıcı olarak silinecek. Bu süre içinde "Silmeyi geri al" ile vazgeçebilirsiniz.', del_pending:'Kalıcı silinme: {d} (kalan {r})', del_undo:'Silmeyi geri al', del_undone:'Silme iptal edildi ✓', o_tailor:'Astarcı (terzi)', o_err_tailor:'Astarcı adını yazın', o_arch:'Arşivle', o_arch_confirm:'Bu sipariş arşive taşınsın mı? Tüm kayıtları sayfalardan gizlenecek (silinmez).', o_archived:'Arşive taşındı', o_restored:'Arşivden geri alındı ✓', o_unarch:'Arşivden geri al', o_arch_on:'Arşive alındı', arch:'Arşiv', arch_empty:'Arşivde sipariş yok', ev_date:'İşlem tarihi', rec_date:'Kayıt zamanı', o_done:'Tamamlandı', o_err:'Müşteri ve toplam paket gerekli', o_added:'Sipariş eklendi ✓',
  h_all_t:'Tüm işlemler', h_all_o:'Tüm siparişler', edited:'düzenlendi', edit_title:'Kaydı düzenle', edit_save:'Değişikliği kaydet', cancel:'Vazgeç', edit_saved:'Düzenlendi ✓', no_change:'Değişiklik yok', c_note:'Not', edit_block:'Bu değişiklik yapılamaz: rakamlar eksiye düşer (ör. depodakinden fazla paket gönderilmiş olur). Adetleri kontrol edin.', deleted:'Silindi',
  r_gen:'Raporu oluştur', r_share_img:'Raporu paylaş', r_share_pdf:'PDF olarak paylaş',
  r_title:'Astar Takip Raporu', r_scope:'Sipariş başlangıcından bugüne', r_generated:'Oluşturulma', r_in_period:'Tüm hareketler (yeniden eskiye)', r_current:'Güncel durum (tüm siparişler)', r_moves:'Hareket listesi', r_orders:'Sipariş bazında durum', r_no_moves:'Henüz hareket yok', r_more:'+ {n} hareket daha',
@@ -349,6 +351,7 @@ function orderCard(o, mode){
   const done = c.ready>=o.total && o.total>0;
   return `<div class="card${mode==='archived'&&o.deleteAt?' delpend':''}">
     <div class="ord-h"><b>${esc(orderLabel(o))}</b><small>${fmtD(o.date)}</small></div>
+    ${o.tailor?`<div class="small" style="margin-top:2px">✂️ ${t('o_tailor')}: <b>${esc(o.tailor)}</b></div>`:''}
     <div class="bar">${seg}</div>
     <div class="legend">${STAGES.map(k=>`<span><i style="background:${COL[k]}"></i>${t('st_'+k)}: <b>${c[k]}</b></span>`).join('')}
       <span>${t('c_total')}: <b>${o.total}</b></span>${done?` <span class="done-tag">${t('o_done')}</span>`:''}</div>
@@ -416,6 +419,7 @@ $('saveBtn').onclick=()=>{
 /* ================= SİPARİŞLER ================= */
 function renderOrders(){
   $('custList').innerHTML = customers().map(c=>`<option value="${esc(c)}">`).join('');
+  $('tailorList').innerHTML = [...new Set(S.orders.map(o=>o.tailor).filter(Boolean))].sort().map(c=>`<option value="${esc(c)}">`).join('');
   if(!$('oDate').value) $('oDate').value=today();
   const list=act().reverse();
   $('orderList').innerHTML = list.length? list.map(o=>orderCard(o,'active')).join('') : `<div class="card empty">${t('none')}</div>`;
@@ -424,10 +428,11 @@ function renderOrders(){
   $('archList').innerHTML = ar.length? ar.map(o=>orderCard(o,'archived')).join('') : `<div class="card empty">${t('arch_empty')}</div>`;
 }
 $('oAddBtn').onclick=()=>{
-  const customer=$('oCustomer').value.trim(), product=$('oProduct').value.trim(), total=parseInt($('oTotal').value), date=$('oDate').value||today();
+  const customer=$('oCustomer').value.trim(), product=$('oProduct').value.trim(), tailor=$('oTailor').value.trim(), total=parseInt($('oTotal').value), date=$('oDate').value||today();
   if(!customer||!total||total<1) return toast(t('o_err'));
-  S.orders.push({id:uid(), customer, product, total, date, ts:Date.now()}); persist();
-  $('oCustomer').value=$('oProduct').value=$('oTotal').value=''; toast(t('o_added')); renderOrders();
+  if(!tailor) return toast(t('o_err_tailor'));
+  S.orders.push({id:uid(), customer, product, tailor, total, date, ts:Date.now()}); persist();
+  $('oCustomer').value=$('oProduct').value=$('oTailor').value=$('oTotal').value=''; toast(t('o_added')); renderOrders();
 };
 function remain(ts){ const ms=Math.max(0,ts-Date.now()), h=Math.floor(ms/3600000), m=Math.floor(ms%3600000/60000); return h+' sa '+m+' dk'; }
 function delArchived(id){ const o=orderById(id); if(!o||!o.archived) return; if(!confirm(t('del_confirm2',{n:orderLabel(o)}))) return;
@@ -461,6 +466,7 @@ function waMessage(m){
   return [head,
     'Müşteri: '+(o?o.customer:'?'),
     'Ürün: '+(o&&o.product?o.product:'-'),
+    o&&o.tailor?'Astarcı: *'+o.tailor+'*':null,
     'Adet: *'+m.qty+' paket*',
     'İşlem tarihi: '+fmtD(m.date),
     m.note?'Not: '+m.note:null,
