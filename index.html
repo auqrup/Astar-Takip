@@ -256,13 +256,13 @@ const I18N = {
 tr:{
  app:'Astar Takip', sub:'Kadife → Astarcı takip sistemi',
  tab_dash:'Özet', tab_add:'Giriş', tab_orders:'Siparişler', tab_hist:'Geçmiş', tab_rep:'Rapor',
- st_pending:'Dokunmadı', st_stock:'Depomuzda', st_tailor:'Astarcıda', st_ready:'Hazır (astarlı)',
- ty_prod:'Dokundu (depoya girdi)', ty_sent:'Astarcıya gönderildi', ty_recv:'Astarcıdan geldi (astarlı)',
- tys_prod:'Dokuma', tys_sent:'Astarcıya gönderim', tys_recv:'Astarcıdan gelen',
+ st_pending:'Üretilmedi', st_stock:'Depomuzda', st_tailor:'Astarcıda', st_ready:'Hazır (astarlı)',
+ ty_prod:'Üretildi (depoya girdi)', ty_sent:'Astarcıya gönderildi', ty_recv:'Astarcıdan geldi (astarlı)',
+ tys_prod:'Üretim', tys_sent:'Astarcıya gönderim', tys_recv:'Astarcıdan gelen',
  pkg:'paket', recent:'Son hareketler', orders_status:'Sipariş durumu', none:'Henüz kayıt yok',
  no_orders:'Önce bir sipariş ekleyin.', go_orders:'Sipariş ekle',
  f_type:'İşlem türü', f_order:'Müşteri – Sipariş', f_qty:'Paket adedi', f_date:'Tarih', f_note:'Not (isteğe bağlı)', save:'Kaydet',
- av_prod:'Dokunacak kalan', av_sent:'Depoda gönderilebilir', av_recv:'Astarcıda bekleyen',
+ av_prod:'Üretilecek kalan', av_sent:'Depoda gönderilebilir', av_recv:'Astarcıda bekleyen',
  err_qty:'Adet 0’dan büyük olmalı', err_order:'Sipariş seçin', err_date:'Tarih seçin',
  err_sent:'Depoda bu kadar paket yok! Mevcut: {n}', err_recv:'Astarcıda bu kadar paket yok! Bekleyen: {n}',
  warn_over:'Bu adet siparişin kalanını ({n}) aşıyor. Yine de kaydedilsin mi?',
@@ -275,7 +275,7 @@ tr:{
  r_last:'Son rapor: {d}', never:'henüz yok', r_since_lbl:'Son rapordan beri ({d} sonrası)',
  backup:'Yedekleme', export:'Yedeği indir (JSON)', import:'Yedeği yükle', imported:'Yedek yüklendi ✓', imp_confirm:'Mevcut veriler yedekteki verilerle değiştirilsin mi?',
  c_order:'Sipariş', c_date:'Tarih', c_type:'İşlem', c_qty:'Paket', c_total:'Toplam',
- st_woven:'Dokundu', st_stock_l:'Depoda (astarcıya gidecek)', r_customer:'Müşteri', r_pick:'Önce müşteri seçin', r_order_total:'Sipariş toplamı', c_product:'Ürün', r_cur_c:'Güncel durum', st_stock_s:'Depoda'
+ st_woven:'Üretildi', st_stock_l:'Depoda (astarcıya gidecek)', r_customer:'Müşteri', r_pick:'Önce müşteri seçin', r_order_total:'Sipariş toplamı', c_product:'Ürün', r_cur_c:'Güncel durum', st_stock_s:'Depoda'
 }
 };
 const LS = {get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
