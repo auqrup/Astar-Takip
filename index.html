@@ -95,6 +95,8 @@ details.arch summary{font-size:15px;color:var(--mute);font-weight:700;padding:12
 .sheet.open{display:flex}
 .sheet .box{background:var(--bg);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
 .sheet h3{margin:0 0 4px;color:var(--brand)}
+.watext{white-space:pre-wrap;font:15px/1.5 system-ui,sans-serif;background:#e7f6e7;border:1px solid #cde8cd;border-radius:12px;padding:12px 14px;margin:0;color:#1c2b1c}
+.btn.wa{background:#25d366;color:#fff}
 .dayh{font-size:13px;font-weight:700;color:var(--brand);margin:14px 4px 4px}
 .empty{text-align:center;color:var(--mute);padding:26px 10px}
 .tabbar{position:fixed;bottom:0;left:0;right:0;z-index:6;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
@@ -213,6 +215,15 @@ details.arch summary{font-size:15px;color:var(--mute);font-weight:700;padding:12
   <button data-p="hist"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span data-i18n="tab_hist"></span></button>
   <button data-p="rep"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg><span data-i18n="tab_rep"></span></button>
 </nav>
+<div class="sheet" id="waSheet">
+  <div class="box">
+    <h3>📲 Muhasebeye bildir</h3>
+    <p class="small" style="margin:4px 0 10px">Kayıt kaydedildi. Bu mesajı WhatsApp ile muhasebeye gönderin.</p>
+    <pre id="waText" class="watext"></pre>
+    <button class="btn wa" onclick="sendWa()">WhatsApp ile gönder</button>
+    <button class="btn sec" onclick="closeWa()">Kapat</button>
+  </div>
+</div>
 <div class="sheet" id="editSheet" onclick="if(event.target===this)closeEdit()">
   <div class="box">
     <h3 data-i18n="edit_title"></h3>
@@ -394,10 +405,12 @@ $('saveBtn').onclick=()=>{
   if(curType==='sent' && qty>c.stock) return toast(t('err_sent',{n:c.stock}));
   if(curType==='recv' && qty>c.tailor) return toast(t('err_recv',{n:c.tailor}));
   if(curType==='prod' && qty>c.pending && !confirm(t('warn_over',{n:c.pending}))) return;
-  S.moves.push({id:uid(), orderId, type:curType, qty, date, note, ts:Date.now()});
+  const mv={id:uid(), orderId, type:curType, qty, date, note, ts:Date.now()};
+  S.moves.push(mv);
   persist();
   $('fQty').value=''; $('fNote').value='';
   toast(t('saved')); renderAdd();
+  if(mv.type==='sent'||mv.type==='recv') openWa(mv);
 };
 
 /* ================= SİPARİŞLER ================= */
@@ -441,6 +454,24 @@ function renderHist(){
   $('histList').innerHTML=html+'</div>';
 }
 $('hType').onchange=$('hOrder').onchange=renderHist;
+/* ---- WhatsApp: muhasebeye bildirim (astarcıya gönderim / astarcıdan geliş) ---- */
+function waMessage(m){
+  const o=orderById(m.orderId), c=calc(m.orderId);
+  const head = m.type==='sent' ? '📦 *ASTARCIYA GÖNDERİM*' : '✅ *ASTARCIDAN GELİŞ (astarlı)*';
+  return [head,
+    'Müşteri: '+(o?o.customer:'?'),
+    'Ürün: '+(o&&o.product?o.product:'-'),
+    'Adet: *'+m.qty+' paket*',
+    'İşlem tarihi: '+fmtD(m.date),
+    m.note?'Not: '+m.note:null,
+    '',
+    '_Sipariş durumu:_ Toplam '+c.total+' · Depoda '+c.stock+' · Astarcıda '+c.tailor+' · Hazır '+c.ready,
+    'Kayıt: '+fmtTs(m.ts)].filter(x=>x!==null).join('\n');
+}
+function openWa(m){ $('waText').textContent=waMessage(m); $('waSheet').classList.add('open'); }
+function closeWa(){ $('waSheet').classList.remove('open'); }
+function sendWa(){ const txt=$('waText').textContent; window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank'); closeWa(); }
+
 /* ---- Düzenleme ---- */
 let editId=null, eType='prod';
 function openEdit(id){
